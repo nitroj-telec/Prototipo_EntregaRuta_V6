@@ -1,0 +1,864 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EntregaRuta</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<style>
+body{font-family:system-ui,sans-serif;background:#f2f4f8;margin:0;padding:16px;color:#111}
+.box{background:#fff;border-radius:12px;padding:20px;max-width:760px;margin:0 auto 16px;box-shadow:0 2px 10px rgba(0,0,0,.08)}
+.hidden{display:none!important}
+.avatar{width:120px;height:120px;border-radius:50%;background:#c8d0da;display:flex;align-items:center;justify-content:center;margin:0 auto 20px;font-size:14px}
+input,textarea{width:100%;padding:9px;margin:4px 0 12px;box-sizing:border-box;border:1px solid #ccc;border-radius:6px;font:inherit}
+label{font-size:14px}
+button,.btn{display:inline-block;padding:9px 14px;border:0;border-radius:6px;background:#3ecf8e;color:#fff;font-weight:bold;cursor:pointer;margin:4px 4px 4px 0;font-size:14px}
+button.sec{background:#6b7280}
+button.out{background:#fff;color:#111;border:1px solid #999}
+button.danger{background:#dc2626}
+button:disabled{opacity:.5;cursor:default}
+.row{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;margin-top:12px}
+nav{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+nav button{background:#e5e7eb;color:#111}
+nav button.act{background:#2563eb;color:#fff}
+.top{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+td,th{border-bottom:1px solid #e5e7eb;padding:6px;text-align:left;vertical-align:top}
+.msg{font-size:14px;color:#b91c1c;min-height:18px;margin-top:8px}
+.msg.ok{color:#15803d}
+.alert{background:#eff6ff;padding:10px;border-radius:8px;font-size:14px;margin-bottom:12px}
+.card-p,.step{border:1px solid #e5e7eb;border-radius:8px;padding:10px;margin-bottom:8px}
+#reader{max-width:400px;margin:0 auto 12px}
+#map{height:300px;border-radius:10px;margin-bottom:12px}
+.stats{display:flex;gap:8px;margin-bottom:12px}
+.stats div{flex:1;background:#f3f4f6;border-radius:8px;padding:10px;text-align:center}
+.stats b{font-size:20px;display:block}
+</style>
+</head>
+<body>
+
+<!-- ==================== PORTAL ==================== -->
+<section id="s-portal" class="pantalla box">
+    <div class="avatar">Foto de perfil</div>
+    <button style="width:100%" onclick="ir('s-login-empresa')">Iniciar sesión de empresa</button>
+    <button style="width:100%" onclick="ir('s-login-usuario')">Iniciar sesión de usuario</button>
+    <button style="width:100%" class="sec" onclick="ir('s-registro')">Crear cuenta</button>
+</section>
+
+<!-- ==================== LOGIN EMPRESA ==================== -->
+<section id="s-login-empresa" class="pantalla box hidden">
+    <h2>Iniciar sesión de empresa</h2>
+    <label>Correo</label><input id="emp-email" type="email">
+    <label>Contraseña</label><input id="emp-pass" type="password">
+    <div class="row">
+        <button class="out" onclick="ir('s-portal')">Volver</button>
+        <button onclick="loginEmpresa()">Entrar</button>
+    </div>
+    <div id="msg-login-empresa" class="msg"></div>
+</section>
+
+<!-- ==================== LOGIN USUARIO ==================== -->
+<section id="s-login-usuario" class="pantalla box hidden">
+    <h2>Iniciar sesión de usuario</h2>
+    <label>Código de empresa</label><input id="usr-codigo" type="number">
+    <label>Usuario</label><input id="usr-usuario" type="text" autocomplete="username">
+    <label>Contraseña</label><input id="usr-pass" type="password" autocomplete="current-password">
+    <div class="row">
+        <button class="out" onclick="ir('s-portal')">Volver</button>
+        <button onclick="loginUsuario()">Entrar</button>
+    </div>
+    <div id="msg-login-usuario" class="msg"></div>
+</section>
+
+<!-- ==================== CAMBIO DE CONTRASEÑA (primer inicio del trabajador) ==================== -->
+<section id="s-cambiar-pass" class="pantalla box hidden">
+    <h2>Cambia tu contraseña</h2>
+    <div class="alert">Es tu primer inicio de sesión. Define una contraseña nueva para continuar.</div>
+    <label>Nueva contraseña (mínimo 8 caracteres)</label><input id="cp-nueva" type="password" autocomplete="new-password">
+    <label>Repite la nueva contraseña</label><input id="cp-confirmar" type="password" autocomplete="new-password">
+    <div class="row">
+        <button class="out" onclick="cerrarSesion()">Cancelar</button>
+        <button onclick="guardarNuevaPassword()">Guardar contraseña</button>
+    </div>
+    <div id="msg-cambiar-pass" class="msg"></div>
+</section>
+
+<!-- ==================== REGISTRO EMPRESA ==================== -->
+<section id="s-registro" class="pantalla box hidden">
+    <h2>Crear cuenta de empresa</h2>
+    <label>Correo</label><input id="reg-email" type="email">
+    <label>Contraseña (mínimo 6 caracteres)</label><input id="reg-pass" type="password">
+    <div class="row">
+        <button class="out" onclick="ir('s-portal')">Volver</button>
+        <button onclick="registrar()">Continuar</button>
+    </div>
+    <div id="msg-registro" class="msg"></div>
+</section>
+
+<!-- ==================== PERFIL DE EMPRESA ==================== -->
+<section id="s-perfil" class="pantalla box hidden">
+    <h2>Perfil de empresa</h2>
+    <label>Nombre de empresa</label><input id="pe-nombre">
+    <label>Dirección de la empresa (calle, número, ciudad, país)</label><input id="pe-direccion" placeholder="Ej: Av. Providencia 1234, Santiago, Chile">
+    <label>Descripción de la empresa</label><textarea id="pe-desc" rows="4"></textarea>
+    <label>Número de contacto</label><input id="pe-tel" type="tel">
+    <label>Correo de contacto</label><input id="pe-correo" type="email">
+    <label><input id="pe-terminos" type="checkbox" style="width:auto"> Acepto los términos y condiciones</label>
+    <div class="row">
+        <button class="out" onclick="deshacerPerfil()">Deshacer</button>
+        <button onclick="guardarPerfil()">Guardar y continuar</button>
+    </div>
+    <div id="msg-perfil" class="msg"></div>
+</section>
+
+<!-- ==================== PANEL EMPRESA ==================== -->
+<section id="s-empresa" class="pantalla box hidden">
+    <div class="top">
+        <h2>EntregaRuta · <span id="badge-empresa"></span></h2>
+        <button class="sec" onclick="cerrarSesion()">Cerrar sesión</button>
+    </div>
+    <nav>
+        <button id="btn-tab-trab" data-grupo="emp" data-tab="p-trabajadores" class="act">Trabajadores</button>
+        <button data-grupo="emp" data-tab="p-paq-emp">Paquetes escaneados</button>
+        <button data-grupo="emp" data-tab="p-informe">Informe</button>
+    </nav>
+
+    <div id="p-trabajadores" data-grupo="emp" class="panel">
+        <div class="row" style="justify-content:flex-start">
+            <button onclick="document.getElementById('form-crear').classList.toggle('hidden')">Crear usuario(s)</button>
+            <label class="btn">Cargar archivo .csv
+                <input id="input-csv" type="file" accept=".csv" hidden>
+            </label>
+        </div>
+        <div class="alert">CSV con columnas: <code>id_empresa, id_trabajador, nombre, usuario, contrasena, correo, telefono</code>. El ID del trabajador lo asigna el sistema. No uses comas dentro de los valores.</div>
+
+        <div id="form-crear" class="hidden">
+            <label>Nombre</label><input id="tr-nombre">
+            <label>Usuario</label><input id="tr-usuario">
+            <label>Contraseña inicial (mínimo 8 caracteres)</label><input id="tr-pass" type="text" autocomplete="off">
+            <label>Correo</label><input id="tr-correo" type="email">
+            <label>Teléfono</label><input id="tr-tel" type="tel">
+            <button onclick="agregarManual()">Agregar usuario</button>
+        </div>
+
+        <div id="msg-trabajadores" class="msg"></div>
+        <div id="tabla-trabajadores"></div>
+
+        <div class="row">
+            <button class="out" onclick="ir('s-perfil')">Volver atrás</button>
+            <button onclick="document.querySelector('[data-tab=\'p-paq-emp\']').click()">Guardar y continuar</button>
+        </div>
+    </div>
+
+    <div id="p-paq-emp" data-grupo="emp" class="panel hidden">
+        <div id="tabla-paquetes-emp"></div>
+    </div>
+
+    <div id="p-informe" data-grupo="emp" class="panel hidden">
+        <p>Genera un informe de operaciones con todos los paquetes escaneados por tus trabajadores. Se abre el diálogo de impresión: elige "Guardar como PDF".</p>
+        <button onclick="descargarInforme()">Descargar informe (PDF)</button>
+    </div>
+</section>
+
+<!-- ==================== PANEL TRABAJADOR ==================== -->
+<section id="s-trabajador" class="pantalla box hidden">
+    <div class="top">
+        <h2>EntregaRuta · <span id="badge-trab"></span></h2>
+        <button class="sec" onclick="cerrarSesion()">Cerrar sesión</button>
+    </div>
+    <nav>
+        <button id="btn-tab-scan" data-grupo="trab" data-tab="p-scanner" class="act">📷 Escanear</button>
+        <button data-grupo="trab" data-tab="p-paquetes">📋 Paquetes</button>
+        <button data-grupo="trab" data-tab="p-ruta">🗺️ Ruta</button>
+    </nav>
+
+    <div id="p-scanner" data-grupo="trab" class="panel">
+        <div class="alert">Apuntá la cámara al código de barras o QR del paquete.</div>
+        <div id="reader"></div>
+        <div class="row" style="justify-content:flex-start">
+            <button id="btn-iniciar">Iniciar cámara</button>
+            <button id="btn-detener" class="sec hidden">Detener cámara</button>
+        </div>
+        <div id="ultimo" class="card-p hidden"><b>✅ Último escaneo</b><div id="ultimo-detalle"></div></div>
+    </div>
+
+    <div id="p-paquetes" data-grupo="trab" class="panel hidden">
+        <div class="top"><h3>Paquetes escaneados</h3><span id="contador">0</span></div>
+        <div id="lista-paquetes"></div>
+        <button id="btn-vaciar" class="danger hidden">Vaciar lista</button>
+    </div>
+
+    <div id="p-ruta" data-grupo="trab" class="panel hidden">
+        <div id="route-warning" class="alert">Necesitás al menos 2 paquetes para generar una ruta.</div>
+        <button id="btn-optimizar" disabled>🚀 Optimizar ruta de entrega</button>
+        <div id="route-results" class="hidden">
+            <div class="stats">
+                <div><b id="stat-distance">0 km</b>Distancia total</div>
+                <div><b id="stat-stops">0</b>Paradas</div>
+            </div>
+            <div id="map"></div>
+            <div id="route-list"></div>
+        </div>
+    </div>
+</section>
+
+<!-- Librerías -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+
+<script>
+// ============================================================
+// CONFIGURACIÓN
+// ============================================================
+const SUPABASE_URL = 'https://wizxdjnrosqfcpakxcgi.supabase.co';       // PEGA AQUÍ: Project URL (Project Settings > API)
+const SUPABASE_ANON_KEY = 'sb_publishable_fZfNZwRrYAPUM0RAorU9eg_sHd5_QPG';                  // PEGA AQUÍ: anon / publishable key (NUNCA la service_role)
+const DOMINIO_TRABAJADORES = 'trabajadores.entregaruta.demo';  // Debe coincidir con la Edge Function
+const CONTRASENA_TRABAJADOR_MIN = 8;                           // Debe coincidir con la Edge Function
+
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// Punto de inicio y término de la ruta: la dirección de la empresa (se carga al iniciar sesión)
+let DEPOT = null;
+
+let estado = { tipo: null, empresa: null, trabajador: null };
+let paquetes = [];
+const pendientes = new Set();
+let ultimoEscaneo = { texto: '', ms: 0 };
+let html5QrCode = null, map = null;
+
+// ============================================================
+// UTILIDADES
+// ============================================================
+const $ = id => document.getElementById(id);
+const v = id => $(id).value.trim();
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+
+function ir(id) {
+    document.querySelectorAll('.pantalla').forEach(s => s.classList.add('hidden'));
+    $(id).classList.remove('hidden');
+}
+function msg(id, texto, ok = false) {
+    const el = $(id); el.textContent = texto; el.className = 'msg' + (ok ? ' ok' : '');
+}
+function emailTrabajador(codigo, usuario) {
+    return `${codigo}.${usuario}@${DOMINIO_TRABAJADORES}`;
+}
+async function detalleError(error) {
+    try { return (await error.context.json()).error; } catch { return error.message; }
+}
+
+// Convierte una dirección en coordenadas con Nominatim (OpenStreetMap)
+async function geocodificar(direccion) {
+    const url = 'https://nominatim.openstreetmap.org/search?format=json&limit=1&accept-language=es&q=' +
+                encodeURIComponent(direccion);
+    const r = await fetch(url);
+    if (!r.ok) throw new Error('El servicio de ubicación no respondió. Intenta de nuevo.');
+    const datos = await r.json();
+    if (!datos.length) throw new Error(`No se encontró la dirección "${direccion}". Incluye calle, número, ciudad y país.`);
+    return { lat: Number(datos[0].lat), lng: Number(datos[0].lon) };
+}
+
+function ubicacionEmpresa(emp) {
+    return { id: 'DEPOT', destinatario: emp.nombre, direccion: emp.direccion, lat: emp.lat, lng: emp.lng };
+}
+function perfilCompleto(emp) {
+    return !!(emp && emp.nombre && emp.direccion && emp.lat != null && emp.lng != null);
+}
+
+// Navegación por pestañas (grupos: "emp" y "trab")
+document.addEventListener('click', e => {
+    const tab = e.target.closest('[data-tab]');
+    if (!tab) return;
+    const grupo = tab.dataset.grupo;
+    document.querySelectorAll(`[data-tab][data-grupo="${grupo}"]`).forEach(b => b.classList.toggle('act', b === tab));
+    document.querySelectorAll(`.panel[data-grupo="${grupo}"]`).forEach(p => p.classList.toggle('hidden', p.id !== tab.dataset.tab));
+
+    const acciones = {
+        'p-trabajadores': cargarTrabajadores,
+        'p-paq-emp': cargarPaquetesEmpresa,
+        'p-paquetes': cargarPaquetesTrabajador,
+    };
+    if (acciones[tab.dataset.tab]) acciones[tab.dataset.tab]();
+    if (tab.dataset.tab === 'p-ruta' && map) setTimeout(() => map.invalidateSize(), 100);
+});
+
+// ============================================================
+// SESIÓN Y ENTRADA A PANELES
+// ============================================================
+function irAPerfil() {
+    const e = estado.empresa || {};
+    $('pe-nombre').value = e.nombre ?? '';
+    $('pe-direccion').value = e.direccion ?? '';
+    $('pe-desc').value = e.descripcion ?? '';
+    $('pe-tel').value = e.telefono ?? '';
+    $('pe-correo').value = e.correo ?? '';
+    $('pe-terminos').checked = !!e.terminos;
+    ir('s-perfil');
+}
+
+async function loginEmpresa() {
+    const { error } = await sb.auth.signInWithPassword({ email: v('emp-email'), password: $('emp-pass').value });
+    if (error) return msg('msg-login-empresa', 'Correo o contraseña incorrectos.');
+
+    const { data: { user } } = await sb.auth.getUser();
+    const { data: emp } = await sb.from('empresas').select('*').eq('id', user.id).maybeSingle();
+    if (!emp) {
+        await sb.auth.signOut();
+        return msg('msg-login-empresa', 'Esta cuenta no es de empresa.');
+    }
+    estado.tipo = 'empresa';
+    estado.empresa = emp;
+    perfilCompleto(emp) ? entrarEmpresa() : irAPerfil();
+}
+
+async function loginUsuario() {
+    const codigo = v('usr-codigo'), usuario = v('usr-usuario').toLowerCase();
+    const { error } = await sb.auth.signInWithPassword({
+        email: emailTrabajador(codigo, usuario), password: $('usr-pass').value
+    });
+    if (error) return msg('msg-login-usuario', 'Código, usuario o contraseña incorrectos.');
+
+    if (!(await iniciarSesionTrabajador())) {
+        await sb.auth.signOut();
+        msg('msg-login-usuario', 'Esta cuenta no es de usuario o está desactivada.');
+    }
+}
+
+// Carga al trabajador de la sesión activa, su empresa y decide la pantalla de entrada
+async function iniciarSesionTrabajador() {
+    const { data: { user } } = await sb.auth.getUser();
+    const { data: tr } = await sb.from('trabajadores').select('*').eq('auth_id', user.id).maybeSingle();
+    if (!tr || !tr.activo) return false;
+
+    const { data: emp } = await sb.from('empresas').select('*').eq('id', tr.empresa_id).maybeSingle();
+    if (!emp) return false;
+
+    estado.tipo = 'trabajador';
+    estado.trabajador = tr;
+    estado.empresa = emp;
+    DEPOT = ubicacionEmpresa(emp);
+
+    if (tr.debe_cambiar_password) {
+        $('cp-nueva').value = '';
+        $('cp-confirmar').value = '';
+        msg('msg-cambiar-pass', '');
+        ir('s-cambiar-pass');
+    } else {
+        entrarTrabajador();
+    }
+    return true;
+}
+
+async function guardarNuevaPassword() {
+    const p1 = $('cp-nueva').value, p2 = $('cp-confirmar').value;
+    if (p1.length < CONTRASENA_TRABAJADOR_MIN)
+        return msg('msg-cambiar-pass', `La contraseña debe tener al menos ${CONTRASENA_TRABAJADOR_MIN} caracteres.`);
+    if (p1 !== p2) return msg('msg-cambiar-pass', 'Las contraseñas no coinciden.');
+
+    const { error } = await sb.auth.updateUser({ password: p1 });
+    if (error) return msg('msg-cambiar-pass', 'No se pudo cambiar la contraseña: ' + error.message);
+
+    const { error: errRpc } = await sb.rpc('marcar_password_cambiada');
+    if (errRpc) return msg('msg-cambiar-pass', 'Contraseña cambiada, pero no se pudo actualizar el estado: ' + errRpc.message);
+
+    estado.trabajador.debe_cambiar_password = false;
+    entrarTrabajador();
+}
+
+function entrarEmpresa() {
+    ir('s-empresa');
+    $('badge-empresa').textContent = `${estado.empresa.nombre} (código ${estado.empresa.codigo})`;
+    $('btn-tab-trab').click();
+}
+
+function entrarTrabajador() {
+    ir('s-trabajador');
+    $('badge-trab').textContent = `${estado.empresa.nombre} (${estado.trabajador.codigo_empresa}) · ${estado.trabajador.usuario}`;
+    $('btn-tab-scan').click();
+}
+
+async function cerrarSesion() {
+    if (html5QrCode && html5QrCode.isScanning) await html5QrCode.stop().catch(() => {});
+    await sb.auth.signOut();
+    estado = { tipo: null, empresa: null, trabajador: null };
+    DEPOT = null;
+    paquetes = [];
+    pendientes.clear();
+    ultimoEscaneo = { texto: '', ms: 0 };
+    ir('s-portal');
+}
+
+// ============================================================
+// REGISTRO Y PERFIL DE EMPRESA
+// ============================================================
+async function registrar() {
+    const pass = $('reg-pass').value;
+    if (pass.length < 6) return msg('msg-registro', 'La contraseña debe tener al menos 6 caracteres.');
+
+    const { data, error } = await sb.auth.signUp({ email: v('reg-email'), password: pass });
+    if (error) return msg('msg-registro', error.message);
+    if (!data.session) return msg('msg-registro', 'Desactiva "Confirm email" en Supabase para continuar.');
+
+    estado.tipo = 'empresa';
+    estado.empresa = null;
+    irAPerfil();
+}
+
+function deshacerPerfil() {
+    ['pe-nombre', 'pe-direccion', 'pe-desc', 'pe-tel', 'pe-correo'].forEach(id => $(id).value = '');
+    $('pe-terminos').checked = false;
+    msg('msg-perfil', '');
+}
+
+async function guardarPerfil() {
+    if (!v('pe-nombre')) return msg('msg-perfil', 'Escribe el nombre de la empresa.');
+    if (!v('pe-direccion')) return msg('msg-perfil', 'Escribe la dirección de la empresa.');
+    if (!$('pe-terminos').checked) return msg('msg-perfil', 'Debes aceptar los términos y condiciones.');
+
+    msg('msg-perfil', 'Ubicando la dirección…', true);
+    let coords;
+    try {
+        coords = await geocodificar(v('pe-direccion'));
+    } catch (e) {
+        return msg('msg-perfil', e.message);
+    }
+
+    const { data: { user } } = await sb.auth.getUser();
+    const { data, error } = await sb.from('empresas').upsert({
+        id: user.id,
+        nombre: v('pe-nombre'),
+        direccion: v('pe-direccion'),
+        lat: coords.lat,
+        lng: coords.lng,
+        descripcion: v('pe-desc'),
+        telefono: v('pe-tel'),
+        correo: v('pe-correo'),
+        terminos: true,
+    }).select().single();
+    if (error) return msg('msg-perfil', error.message);
+
+    estado.empresa = data;
+    estado.tipo = 'empresa';
+    entrarEmpresa();
+}
+
+// ============================================================
+// TRABAJADORES (alta, CSV, listado y desactivación)
+// ============================================================
+async function cargarTrabajadores() {
+    if (!estado.empresa) return;
+    const { data, error } = await sb.from('trabajadores').select('*')
+        .eq('empresa_id', estado.empresa.id).order('codigo_trabajador');
+    if (error) return msg('msg-trabajadores', error.message);
+
+    $('tabla-trabajadores').innerHTML = data.length ? `
+        <table>
+            <tr><th>ID empresa</th><th>ID trabajador</th><th>Nombre</th><th>Usuario</th>
+                <th>Correo</th><th>Teléfono</th><th>Estado</th><th></th></tr>
+            ${data.map(t => `
+                <tr>
+                    <td>${t.codigo_empresa}</td>
+                    <td>${t.codigo_trabajador}</td>
+                    <td>${esc(t.nombre)}</td>
+                    <td>${esc(t.usuario)}</td>
+                    <td>${esc(t.correo)}</td>
+                    <td>${esc(t.telefono)}</td>
+                    <td>${t.activo ? 'Activo' : 'Desactivado'}</td>
+                    <td>${t.activo ? `<button class="danger" data-desactivar="${t.codigo_trabajador}">Desactivar</button>` : ''}</td>
+                </tr>`).join('')}
+        </table>` : '<p>Todavía no hay trabajadores.</p>';
+}
+
+async function crearTrabajadores(lista) {
+    msg('msg-trabajadores', 'Creando usuarios…', true);
+    const { data, error } = await sb.functions.invoke('crear-trabajadores', {
+        body: { accion: 'crear', trabajadores: lista }
+    });
+    if (error) return msg('msg-trabajadores', 'Error: ' + await detalleError(error));
+    if (!data || !Array.isArray(data.resultados)) {
+        console.error('Respuesta inesperada de la función:', data);
+        return msg('msg-trabajadores', 'La función no devolvió resultados. Revisa la consola (F12).');
+    }
+
+    const fallidos = data.resultados.filter(r => !r.ok).map(r => `${r.usuario}: ${r.error}`);
+    await cargarTrabajadores();
+    if (fallidos.length) msg('msg-trabajadores', 'Errores: ' + fallidos.join(' | '));
+    else msg('msg-trabajadores', `${data.resultados.length} usuario(s) creado(s). Pueden iniciar sesión y deberán cambiar su contraseña.`, true);
+}
+
+async function agregarManual() {
+    const t = {
+        nombre: v('tr-nombre'),
+        usuario: v('tr-usuario').toLowerCase(),
+        contrasena: $('tr-pass').value,
+        correo: v('tr-correo'),
+        telefono: v('tr-tel'),
+    };
+    if (!t.nombre || !t.usuario) return msg('msg-trabajadores', 'Nombre y usuario son obligatorios.');
+    if (t.contrasena.length < CONTRASENA_TRABAJADOR_MIN)
+        return msg('msg-trabajadores', `La contraseña debe tener al menos ${CONTRASENA_TRABAJADOR_MIN} caracteres.`);
+
+    await crearTrabajadores([t]);
+    ['tr-nombre', 'tr-usuario', 'tr-pass', 'tr-correo', 'tr-tel'].forEach(id => $(id).value = '');
+}
+
+function parsearCSV(texto) {
+    const lineas = texto.trim().split(/\r?\n/).filter(Boolean);
+    const cab = lineas.shift().split(',').map(h => h.trim().toLowerCase());
+    return lineas.map(l => {
+        const c = l.split(',').map(x => x.trim());
+        const fila = {};
+        cab.forEach((h, i) => fila[h] = c[i] || '');
+        return fila;
+    });
+}
+
+$('input-csv').addEventListener('change', async e => {
+    const archivo = e.target.files[0];
+    if (!archivo) return;
+    const lista = [], errores = [];
+    parsearCSV(await archivo.text()).forEach((r, i) => {
+        const fila = i + 2;
+        if (r.id_empresa && Number(r.id_empresa) !== estado.empresa.codigo)
+            return errores.push(`fila ${fila}: id_empresa no coincide con tu empresa`);
+        if (!r.nombre || !r.usuario)
+            return errores.push(`fila ${fila}: falta nombre o usuario`);
+        if ((r.contrasena || '').length < CONTRASENA_TRABAJADOR_MIN)
+            return errores.push(`fila ${fila}: la contrasena debe tener al menos ${CONTRASENA_TRABAJADOR_MIN} caracteres`);
+        lista.push({
+            nombre: r.nombre,
+            usuario: r.usuario.toLowerCase(),
+            contrasena: r.contrasena,
+            correo: r.correo,
+            telefono: r.telefono,
+        });
+    });
+    if (errores.length) {
+        msg('msg-trabajadores', errores.join(' | '));
+    } else if (lista.length) {
+        await crearTrabajadores(lista);
+    }
+    e.target.value = '';
+});
+
+$('tabla-trabajadores').addEventListener('click', async e => {
+    const b = e.target.closest('[data-desactivar]');
+    if (!b) return;
+    if (!confirm('¿Desactivar este trabajador? No podrá volver a entrar, pero sus paquetes se conservan en el informe.')) return;
+    const { error } = await sb.functions.invoke('crear-trabajadores', {
+        body: { accion: 'eliminar', codigo_trabajador: Number(b.dataset.desactivar) }
+    });
+    if (error) return alert('No se pudo desactivar: ' + await detalleError(error));
+    cargarTrabajadores();
+});
+
+// ============================================================
+// PAQUETES DE LA EMPRESA E INFORME
+// ============================================================
+const COLUMNAS_PAQUETES = [
+    ['Código', p => p.code],
+    ['Fecha', p => p.fecha_escaneo],
+    ['Hora', p => p.hora_escaneo],
+    ['Escaneado por', p => p.escaneado_por],
+    ['Comprador', p => p.comprador_nombre],
+    ['Teléfono', p => p.comprador_telefono],
+    ['Correo', p => p.comprador_correo],
+    ['Producto', p => p.producto_nombre],
+    ['Detalle', p => p.producto_detalle],
+    ['Dirección de entrega', p => p.direccion_entrega],
+    ['Estado', p => p.estado],
+];
+
+function tablaPaquetes(datos) {
+    const cabecera = COLUMNAS_PAQUETES.map(([titulo]) => `<th>${titulo}</th>`).join('');
+    const filas = datos.map(p =>
+        `<tr>${COLUMNAS_PAQUETES.map(([, valor]) => `<td>${esc(valor(p))}</td>`).join('')}</tr>`
+    ).join('');
+    return `<table><tr>${cabecera}</tr>${filas}</table>`;
+}
+
+async function cargarPaquetesEmpresa() {
+    if (!estado.empresa) return [];
+    const { data, error } = await sb.from('packages').select('*')
+        .eq('empresa_id', estado.empresa.id).order('scanned_at');
+    if (error) { alert('Error cargando paquetes: ' + error.message); return []; }
+
+    $('tabla-paquetes-emp').innerHTML = data.length
+        ? tablaPaquetes(data)
+        : '<p>Todavía no hay paquetes escaneados.</p>';
+    return data;
+}
+
+async function descargarInforme() {
+    const datos = await cargarPaquetesEmpresa();
+    const w = window.open('', '_blank');
+    if (!w) return alert('Permite las ventanas emergentes para generar el informe.');
+
+    w.document.write(`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
+        <title>Informe de operaciones</title>
+        <style>body{font-family:sans-serif}table{border-collapse:collapse;width:100%}
+        td,th{border:1px solid #999;padding:4px;font-size:11px;text-align:left}</style></head>
+        <body><h2>Informe de operaciones: ${esc(estado.empresa.nombre)}</h2>
+        <p>Generado: ${esc(new Date().toLocaleString('es'))}</p>
+        ${tablaPaquetes(datos)}</body></html>`);
+    w.document.close();
+    setTimeout(() => w.print(), 300);
+}
+
+// ============================================================
+// TRABAJADOR: ESCÁNER Y PAQUETES
+// ============================================================
+const CAMPOS_QR_OBLIGATORIOS = ['id', 'comprador_nombre', 'producto_nombre', 'direccion_entrega'];
+
+async function cargarPaquetesTrabajador() {
+    // RLS: el trabajador solo recibe sus propios paquetes
+    const { data, error } = await sb.from('packages').select('*').order('scanned_at');
+    if (error) return alert('Error cargando paquetes: ' + error.message);
+    paquetes = data.map(r => ({
+        id: r.code, destinatario: r.destinatario, direccion: r.direccion,
+        lat: r.lat, lng: r.lng, rawCode: r.raw_code || undefined,
+        code: r.code, fecha_escaneo: r.fecha_escaneo, hora_escaneo: r.hora_escaneo,
+        escaneado_por: r.escaneado_por, comprador_nombre: r.comprador_nombre,
+        comprador_telefono: r.comprador_telefono, comprador_correo: r.comprador_correo,
+        producto_nombre: r.producto_nombre, producto_detalle: r.producto_detalle,
+        direccion_entrega: r.direccion_entrega, estado: r.estado,
+    }));
+    renderPaquetes();
+}
+
+function renderPaquetes() {
+    $('contador').textContent = paquetes.length;
+
+    // Orden natural por código: PKG-1100 < PKG-1101 < PKG-1102
+    const ordenados = [...paquetes].sort((a, b) =>
+        String(a.id).localeCompare(String(b.id), 'es', { numeric: true })
+    );
+
+    $('lista-paquetes').innerHTML = ordenados.length
+        ? ordenados.map(p => `
+            <div class="card-p">
+                <b>${esc(p.id)}</b> <button class="danger" data-quitar="${esc(p.id)}">Eliminar</button><br>
+                ${esc(p.destinatario)}<br><small>📍 ${esc(p.direccion)}</small>
+            </div>`).join('')
+        : '<p>Todavía no hay paquetes. Escaneá códigos para agregarlos.</p>';
+    $('btn-vaciar').classList.toggle('hidden', !paquetes.length);
+    $('route-warning').classList.toggle('hidden', paquetes.length >= 2);
+    $('btn-optimizar').disabled = paquetes.length < 2;
+}
+
+async function agregarPaquete(p) {
+    if (paquetes.some(x => x.id === p.id)) return alert('Este paquete ya fue escaneado.');
+
+    const { error } = await sb.from('packages').insert({
+        code: p.id,
+        destinatario: p.destinatario,
+        direccion: p.direccion,
+        lat: p.lat,
+        lng: p.lng,
+        raw_code: p.rawCode,
+        empresa_id: estado.empresa.id,
+        escaneado_por: estado.trabajador.usuario,
+        fecha_escaneo: p.fecha_escaneo,
+        hora_escaneo: p.hora_escaneo,
+        comprador_nombre: p.comprador_nombre,
+        comprador_telefono: p.comprador_telefono,
+        comprador_correo: p.comprador_correo,
+        producto_nombre: p.producto_nombre,
+        producto_detalle: p.producto_detalle,
+        direccion_entrega: p.direccion_entrega,
+    });
+    if (error) {
+        if (error.code === '23505') return alert('Este paquete ya fue escaneado en tu empresa.');
+        return alert('No se pudo guardar: ' + error.message);
+    }
+    paquetes.push(p);
+    renderPaquetes();
+    mostrarUltimo(p);
+}
+
+function mostrarUltimo(p) {
+    $('ultimo').classList.remove('hidden');
+    $('ultimo-detalle').innerHTML = `<p><b>ID:</b> ${esc(p.id)}</p>
+        <p><b>Comprador:</b> ${esc(p.comprador_nombre)}</p>
+        <p><b>Producto:</b> ${esc(p.producto_nombre)}</p>
+        <p><b>Dirección:</b> ${esc(p.direccion_entrega)}</p>`;
+}
+
+async function onScanSuccess(texto) {
+    texto = texto.trim();
+    // Ignora el mismo código durante 4 segundos mientras la cámara sigue activa
+    if (texto === ultimoEscaneo.texto && Date.now() - ultimoEscaneo.ms < 4000) return;
+    if (pendientes.has(texto)) return;
+    ultimoEscaneo = { texto, ms: Date.now() };
+    pendientes.add(texto);
+
+    try {
+        let datos = null;
+        try { datos = JSON.parse(texto); } catch {}
+        if (!datos || typeof datos !== 'object')
+            return alert('El QR no tiene el formato JSON esperado. Revisa la sección "Formato del QR".');
+
+        const faltan = CAMPOS_QR_OBLIGATORIOS.filter(c => !String(datos[c] ?? '').trim());
+        if (faltan.length) return alert('Al QR le faltan campos obligatorios: ' + faltan.join(', '));
+
+        const id = String(datos.id).trim();
+        if (paquetes.some(x => x.id === id)) return alert('Este paquete ya fue escaneado.');
+
+        const direccion = String(datos.direccion_entrega).trim();
+        let lat = datos.lat, lng = datos.lng;
+        if (lat == null || lng == null) {
+            // El QR no trae coordenadas: se ubica la dirección de entrega
+            const c = await geocodificar(direccion);
+            lat = c.lat;
+            lng = c.lng;
+        }
+
+        const ahora = new Date();
+        await agregarPaquete({
+            id,
+            destinatario: String(datos.comprador_nombre).trim(),
+            direccion,
+            lat: Number(lat),
+            lng: Number(lng),
+            rawCode: texto,
+            comprador_nombre: String(datos.comprador_nombre).trim(),
+            comprador_telefono: datos.comprador_telefono ?? '',
+            comprador_correo: datos.comprador_correo ?? '',
+            producto_nombre: String(datos.producto_nombre).trim(),
+            producto_detalle: datos.producto_detalle ?? '',
+            direccion_entrega: direccion,
+            fecha_escaneo: ahora.toLocaleDateString('sv-SE'),   // AAAA-MM-DD
+            hora_escaneo: ahora.toTimeString().slice(0, 8),     // HH:MM:SS
+        });
+        if (navigator.vibrate) navigator.vibrate(100);
+    } catch (e) {
+        alert('No se pudo registrar el paquete: ' + e.message);
+    } finally {
+        pendientes.delete(texto);
+    }
+}
+
+$('lista-paquetes').addEventListener('click', async e => {
+    const b = e.target.closest('[data-quitar]');
+    if (!b) return;
+    const code = b.dataset.quitar;
+    const { error } = await sb.from('packages').delete().eq('code', code);
+    if (error) return alert(error.message);
+    paquetes = paquetes.filter(p => p.id !== code);
+    renderPaquetes();
+    $('route-results').classList.add('hidden');
+});
+
+$('btn-vaciar').addEventListener('click', async () => {
+    if (!confirm('¿Seguro que querés borrar todos tus paquetes?')) return;
+    const { error } = await sb.from('packages').delete().neq('code', '');
+    if (error) return alert(error.message);
+    paquetes = [];
+    renderPaquetes();
+    $('route-results').classList.add('hidden');
+});
+
+$('btn-iniciar').addEventListener('click', async () => {
+    if (!html5QrCode) html5QrCode = new Html5Qrcode('reader');
+    try {
+        await html5QrCode.start({ facingMode: 'environment' }, { fps: 10, qrbox: { width: 250, height: 250 } },
+            onScanSuccess, () => {});
+        $('btn-iniciar').classList.add('hidden');
+        $('btn-detener').classList.remove('hidden');
+    } catch (err) {
+        alert('No se pudo acceder a la cámara. Dá permisos al navegador e intentá de nuevo.');
+    }
+});
+
+$('btn-detener').addEventListener('click', async () => {
+    if (html5QrCode && html5QrCode.isScanning) await html5QrCode.stop();
+    $('btn-iniciar').classList.remove('hidden');
+    $('btn-detener').classList.add('hidden');
+});
+
+// ============================================================
+// RUTA (vecino más cercano + Haversine), inicio y término en la empresa
+// ============================================================
+function haversineDistance(lat1, lng1, lat2, lng2) {
+    const R = 6371;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLng = (lng2 - lng1) * Math.PI / 180;
+    const a = Math.sin(dLat / 2) ** 2 +
+              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function optimizeRoute(points) {
+    const remaining = [...points];
+    const route = [DEPOT];
+    let current = DEPOT, totalDistance = 0;
+    while (remaining.length) {
+        let idx = 0, min = Infinity;
+        remaining.forEach((p, i) => {
+            const d = haversineDistance(current.lat, current.lng, p.lat, p.lng);
+            if (d < min) { min = d; idx = i; }
+        });
+        current = remaining.splice(idx, 1)[0];
+        route.push(current);
+        totalDistance += min;
+    }
+    totalDistance += haversineDistance(current.lat, current.lng, DEPOT.lat, DEPOT.lng);
+    route.push(DEPOT);
+    return { route, totalDistance };
+}
+
+$('btn-optimizar').addEventListener('click', () => {
+    if (paquetes.length < 2) return;
+    if (!DEPOT || DEPOT.lat == null) return alert('La empresa no tiene dirección configurada.');
+
+    const r = optimizeRoute(paquetes);
+    $('stat-distance').textContent = r.totalDistance.toFixed(1) + ' km';
+    $('stat-stops').textContent = paquetes.length;
+    $('route-list').innerHTML = r.route.map((s, i) => {
+        const esInicio = i === 0, esFin = i === r.route.length - 1;
+        const etiqueta = s.id === 'DEPOT' ? (esInicio ? '🏠 Inicio' : '🏁 Fin') : i;
+        return `<div class="step"><b>${etiqueta}</b> — ${esc(s.destinatario)} <small>${esc(s.direccion)}</small></div>`;
+    }).join('');
+    $('route-results').classList.remove('hidden');
+    drawMap(r.route);
+});
+
+function drawMap(route) {
+    if (map) { map.remove(); map = null; }
+    map = L.map('map').setView([DEPOT.lat, DEPOT.lng], 13);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png?key=cb1_4p8e_1_d8f823b93497c1d093765b28', {
+        attribution: '© OpenStreetMap contributors © CARTO', maxZoom: 20, subdomains: 'abcd'
+    }).addTo(map);
+
+    const latlngs = route.map((s, i) => {
+        const etiqueta = s.id === 'DEPOT' ? (i === 0 ? 'Inicio' : 'Fin') : 'Parada ' + i;
+        L.marker([s.lat, s.lng]).addTo(map)
+            .bindPopup(`<b>${etiqueta}</b><br>${esc(s.destinatario)}<br><small>${esc(s.direccion)}</small>`);
+        return [s.lat, s.lng];
+    });
+    L.polyline(latlngs, { color: '#0ea5e9', weight: 4, opacity: 0.8 }).addTo(map);
+    map.fitBounds(latlngs, { padding: [30, 30] });
+    setTimeout(() => map.invalidateSize(), 200);
+}
+
+// ============================================================
+// INICIO: restaurar sesión si ya existe
+// ============================================================
+(async () => {
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) return;
+    const uid = session.user.id;
+
+    const { data: emp } = await sb.from('empresas').select('*').eq('id', uid).maybeSingle();
+    if (emp) {
+        estado.tipo = 'empresa';
+        estado.empresa = emp;
+        perfilCompleto(emp) ? entrarEmpresa() : irAPerfil();
+        return;
+    }
+    if (!(await iniciarSesionTrabajador())) await sb.auth.signOut();
+})();
+</script>
+</body>
+</html>
